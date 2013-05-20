@@ -112,14 +112,18 @@ module ProcFS
       IO.read("#{path}/oom_score").chomp
     end
 
+    def -(rhs_process_descriptor)
+
+    end
+
     def generate_state_hash
-      Digest::SHA1.hexdigest([@pid, @statm, @sockets.state_hash].flatten.join)
+      ::Digest::MD5.hexdigest([@pid, @statm, @sockets.state_hash].flatten.join)
     end
 
     def to_s
-      "== #{pid} ==\n#{cmdline}\n" +
-      "-- Memory --\nSize: #{statm[:size]} Resident: #{statm[:resident]} Share: #{statm[:share]} Text: #{statm[:text]} Lib: #{statm[:lib]} Data: #{statm[:data]} Dt: #{statm[:dt]}\n" +
-      "-- SOCKETS --\n#{@sockets}\n-- OOM --\nScore: #{oom_score} Adjustment: #{oom_adj}"
+      "=== #{pid}\n#{cmdline}\n" +
+      "Size: #{statm[:size]} Resident: #{statm[:resident]} Share: #{statm[:share]} Text: #{statm[:text]} Lib: #{statm[:lib]} Data: #{statm[:data]}\n" +
+      "OOM Score: #{oom_score} Adjustment: #{oom_adj}\n#{@sockets}"
     end
 
   end

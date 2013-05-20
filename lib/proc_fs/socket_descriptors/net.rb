@@ -65,7 +65,7 @@ module ProcFS
       end
 
       def generate_state_hash
-        Digest::SHA1.hexdigest(
+        ::Digest::MD5.hexdigest(
           [
             @type, @inode, @state, @reference_count, @local_address_bytes,
             @local_port, @remote_address_bytes, @remote_port

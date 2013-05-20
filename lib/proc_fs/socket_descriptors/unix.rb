@@ -31,7 +31,7 @@ module ProcFS
       end
 
       def generate_state_hash
-        Digest::SHA1.hexdigest(
+        ::Digest::MD5.hexdigest(
           [
             @type, @inode, @state, @reference_count
           ].join

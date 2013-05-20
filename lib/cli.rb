@@ -29,7 +29,7 @@ module ProfileProbe
 
         @watcher.probe
 
-        sleep 0.001
+        sleep 0.005
       end
 
     end

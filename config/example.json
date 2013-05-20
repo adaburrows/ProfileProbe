@@ -1,0 +1,8 @@
+{
+  "process_regex_list": [
+    "org\.apache\.activemq\.console\.Main",
+    "\/opt\/puppet\/bin\/memcached",
+    "httpd",
+    "Passenger.*"
+  ]
+}

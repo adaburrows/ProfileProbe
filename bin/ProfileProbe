@@ -1,0 +1,13 @@
+#!/usr/bin/env ruby
+
+require ::File.expand_path("../profile_probe", File.dirname(__FILE__))
+
+probe = ProfileProbe::CLI.new
+
+["EXIT", "QUIT", "TERM", "INT"].each do |signal|
+  Signal.trap(signal) do
+    probe.stop_it
+  end
+end
+
+probe.run

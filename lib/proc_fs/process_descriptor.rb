@@ -1,24 +1,29 @@
 module ProcFS
 
-  class ProcessDescriptor
+  class ProcessDescriptor < ::ProcFS::IdStateListItem
 
-    attr_accessor :state_hash, :pid, :path, :cmdline, :socket_inodes, :sockets, :stat, :statm, :oom_adj, :oom_score
+    attr_accessor :pid, :path, :cmdline, :socket_inodes, :sockets, :stat, :statm, :oom_adj, :oom_score
 
     def initialize(pid = nil, socket_descriptors = nil)
       @path = "/proc/#{pid}"
       parse_pid(pid, socket_descriptors) unless pid.nil?
+      super
     end
 
     def parse_pid(pid, socket_descriptors = nil)
+      @id             = pid
       @pid            = pid
       @cmdline        = read_cmdline(pid)
       @socket_inodes  = parse_socket_inodes(pid)
-      @sockets        = socket_descriptors.filter_on_inode(@socket_inodes) unless socket_descriptors.nil?
+      @sockets        = socket_descriptors.filter_by_id(@socket_inodes) unless socket_descriptors.nil?
       @stat           = parse_stat(pid)
       @statm          = parse_statm(pid)
       @oom_adj        = parse_oom_adj(pid)
       @oom_score      = parse_oom_score(pid)
-      @state_hash     = generate_state_hash
+    end
+
+    def get_state_for_hash
+      [@statm, @sockets.state_hash].flatten.join
     end
 
     def read_cmdline(pid)
@@ -114,10 +119,6 @@ module ProcFS
 
     def -(rhs_process_descriptor)
 
-    end
-
-    def generate_state_hash
-      ::Digest::MD5.hexdigest([@pid, @statm, @sockets.state_hash].flatten.join)
     end
 
     def to_s

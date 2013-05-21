@@ -17,7 +17,7 @@ module ProfileProbe
       socket_list = ::ProcFS::SocketList.scan
 
       process_list  = ::ProcFS::ProcessList.scan(socket_list)
-      process_list  = process_list.filter_by_regex(@process_regex_list) unless @process_regex_list.empty?
+      process_list  = process_list.filter_by_regex(:cmdline, @process_regex_list) unless @process_regex_list.empty?
 
 
       unless @known_process_list == process_list

@@ -2,15 +2,16 @@ module ProcFS
 
   module SocketDescriptor
 
-    class Net
+    class Net < ::ProcFS::IdStateListItem
 
-      attr_accessor :state_hash, :inode, :state, :reference_count, :type,
+      attr_accessor :inode, :state, :reference_count, :type,
       :remote_address_bytes, :remote_address_quad, :remote_port,
       :local_address_bytes, :local_address_quad, :local_port,
       :tx_queue, :rx_queue, :uid
 
       def initialize(socket_line = nil)
         parse_socket(socket_line) unless socket_line.nil?
+        super
       end
 
       def ip_decode(hex)
@@ -46,6 +47,7 @@ module ProcFS
         tx_queue, rx_queue          = socket_decriptor[4].split(':')
         tr, tm_when                 = socket_decriptor[5].split(':')
 
+        @id                     = socket_decriptor[9]
         # Common socket properties
         @inode                  = socket_decriptor[9]
         @state                  = ::ProcFS::NET_STATES[socket_decriptor[3]]
@@ -61,17 +63,14 @@ module ProcFS
         @tx_queue               = tx_queue
         @rx_queue               = rx_queue
         @uid                    = socket_decriptor[7]
-        @state_hash             = generate_state_hash
       end
 
-      def generate_state_hash
-        ::Digest::MD5.hexdigest(
-          [
-            @type, @inode, @state, @reference_count, @local_address_bytes,
-            @local_port, @remote_address_bytes, @remote_port
-          ].join
-        )
-      end
+      def get_state_for_hash
+        [
+          @type, @state, @reference_count, @local_address_bytes,
+          @local_port, @remote_address_bytes, @remote_port
+        ].join
+        end
 
       def to_s
         "#{type} #{inode} #{state} #{reference_count} #{local_address_quad}:#{local_port} ---> #{remote_address_quad}:#{remote_port}"

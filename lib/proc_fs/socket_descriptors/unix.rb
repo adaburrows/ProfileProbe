@@ -2,12 +2,13 @@ module ProcFS
 
   module SocketDescriptor
 
-    class Unix
+    class Unix < ::ProcFS::IdStateListItem
 
-      attr_accessor :state_hash, :inode, :state, :reference_count, :type, :path
+      attr_accessor :inode, :state, :reference_count, :type, :path
 
       def initialize(socket_line = nil)
         parse_socket(socket_line) unless socket_line.nil?
+        super
       end
 
       def parse_socket(socket_line)
@@ -18,6 +19,7 @@ module ProcFS
 
         socket_decriptor  = socket_line.split
 
+        @id               = socket_decriptor[6]
         # Common socket properties
         @inode            = socket_decriptor[6]
         @state            = ::ProcFS::NET_STATES[socket_decriptor[5]]
@@ -25,17 +27,10 @@ module ProcFS
 
         # Unix socket specific properties
         @path             = socket_decriptor[7]
-
-        @state_hash       = generate_state_hash
-
       end
 
-      def generate_state_hash
-        ::Digest::MD5.hexdigest(
-          [
-            @type, @inode, @state, @reference_count
-          ].join
-        )
+      def get_state_for_hash
+        [ @type, @state, @reference_count ].join
       end
 
       def to_s

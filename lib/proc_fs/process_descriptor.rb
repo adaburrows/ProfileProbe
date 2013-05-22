@@ -2,35 +2,31 @@ module ProcFS
 
   class ProcessDescriptor < ::ProcFS::IdStateListItem
 
-    attr_accessor :pid, :path, :cmdline, :socket_inodes, :sockets, :stat, :statm, :oom_adj, :oom_score
+    def self.parse_proc(pid, socket_descriptors = nil)
+      path    = "/proc/#{pid}"
+      inodes  = parse_socket_inodes(path)
+      sockets = socket_descriptors.filter_by_id(inodes) unless socket_descriptors.nil?
 
-    def initialize(pid = nil, socket_descriptors = nil)
-      @path = "/proc/#{pid}"
-      parse_pid(pid, socket_descriptors) unless pid.nil?
-      super
+      properties = {
+        :id             => pid,
+        :pid            => pid,
+        :cmdline        => read_cmdline(path),
+        :socket_inodes  => inodes,
+        :sockets        => sockets,
+        :stat           => parse_stat(path),
+        :statm          => parse_statm(path),
+        :oom_adj        => parse_oom_adj(path),
+        :oom_score      => parse_oom_score(path)
+      }
+      process_descriptor = ::ProcFS::ProcessDescriptor.new(properties)
+      return process_descriptor
     end
 
-    def parse_pid(pid, socket_descriptors = nil)
-      @id             = pid
-      @pid            = pid
-      @cmdline        = read_cmdline(pid)
-      @socket_inodes  = parse_socket_inodes(pid)
-      @sockets        = socket_descriptors.filter_by_id(@socket_inodes) unless socket_descriptors.nil?
-      @stat           = parse_stat(pid)
-      @statm          = parse_statm(pid)
-      @oom_adj        = parse_oom_adj(pid)
-      @oom_score      = parse_oom_score(pid)
-    end
-
-    def get_state_for_hash
-      [@statm, @sockets.state_hash].flatten.join
-    end
-
-    def read_cmdline(pid)
+    def self.read_cmdline(path)
       IO.read("#{path}/cmdline").gsub("\0", ' ')
     end
 
-    def parse_socket_inodes(pid)
+    def self.parse_socket_inodes(path)
       inodes = []
       fd_path = "#{path}/fd/"
       fd = Dir.new(fd_path)
@@ -44,7 +40,7 @@ module ProcFS
       inodes
     end
 
-    def parse_stat(pid)
+    def self.parse_stat(path)
       stat_line = IO.read("#{path}/stat")
       raw_stat = stat_line.split
       stat = {
@@ -93,9 +89,10 @@ module ProcFS
         :guest_time   => raw_stat[42],
         :cguest_time  => raw_stat[43]
       }
+      return ::ProcFS::PropertyBag.new(stat)
     end
     
-    def parse_statm(pid)
+    def self.parse_statm(path)
       statm_line = IO.read("#{path}/statm")
       raw_statm = statm_line.split
       statm = {
@@ -107,24 +104,55 @@ module ProcFS
         :data     => raw_statm[5],
         :dt       => raw_statm[6]
       }
+      return ::ProcFS::PropertyBag.new(statm)
     end
 
-    def parse_oom_adj(pid)
+    def self.parse_oom_adj(path)
       IO.read("#{path}/oom_adj").chomp
     end
 
-    def parse_oom_score(pid)
+    def self.parse_oom_score(path)
       IO.read("#{path}/oom_score").chomp
     end
 
-    def -(rhs_process_descriptor)
+    def -(rhs)
+      list_item_delta = super(rhs)
+      unless list_item_delta.nil?
+        list_item_delta[:pid] = pid
+        list_item_delta[:cmdline] = cmdline
 
+        lhs_sockets = self[:sockets]
+        rhs_sockets = rhs[:sockets]
+
+        unless lhs_sockets == rhs_sockets
+          lhs_socket_list = lhs_sockets.diff_ids rhs_sockets
+          rhs_socket_list = rhs_sockets.diff_ids lhs_sockets
+          lhs_only_socket_states_raw = lhs_sockets.diff_states rhs_sockets
+          rhs_only_socket_states_raw = rhs_sockets.diff_states lhs_sockets
+          lhs_only_socket_states = lhs_only_socket_states_raw.diff_ids lhs_socket_list
+          rhs_only_socket_states = rhs_only_socket_states_raw.diff_ids rhs_socket_list
+          delta =  lhs_only_socket_states - rhs_only_socket_states
+          socket_struct = {
+            :lhs_state  => lhs_sockets.state_hash,
+            :rhs_state  => rhs_sockets.state_hash
+          }
+
+          socket_struct[:lhs_only] = lhs_socket_list unless lhs_socket_list.empty?
+          socket_struct[:rhs_only] = rhs_socket_list unless rhs_socket_list.empty?
+          socket_struct[:delta] = delta unless delta.empty?
+
+          list_item_delta[:sockets] = ::ProcFS::PropertyBag.new(socket_struct)
+        end
+
+      end
+      list_item_delta
     end
 
-    def to_s
-      "=== #{pid}\n#{cmdline}\n" +
-      "Size: #{statm[:size]} Resident: #{statm[:resident]} Share: #{statm[:share]} Text: #{statm[:text]} Lib: #{statm[:lib]} Data: #{statm[:data]}\n" +
-      "OOM Score: #{oom_score} Adjustment: #{oom_adj}\n#{@sockets}"
+    def get_state_for_hash
+      state_data = ""
+      state_data += statm.values.join unless statm.nil?
+      state_data += sockets.state_hash unless sockets.nil?
+      state_data
     end
 
   end

@@ -3,14 +3,22 @@ module ProcFS
   class IdStateList
 
     include ::ProcFS::HasIdAndStateHashes
+    include Enumerable
 
     attr_accessor :id_index, :state_index, :id_hash, :state_hash
 
     def initialize(passthrough_id_index = {}, passthrough_state_index = {})
+      @separator = "\n"
       @id_index = passthrough_id_index
       @state_index = passthrough_state_index
       @id_hash = generate_id_hash(@id_index.keys.join)
       @state_hash = generate_state_hash(@state_index.keys.join)
+    end
+
+    def each
+      @id_index.each do |id, element|
+        yield id, element
+      end
     end
 
     def filter_by_id(id_list)
@@ -25,7 +33,7 @@ module ProcFS
         end
       end
 
-      return self.get_new_instance(filtered_id_index, filtered_state_index)
+      return self.class.new(filtered_id_index, filtered_state_index)
     end
 
     def filter_by_list(property, value_list)
@@ -34,14 +42,14 @@ module ProcFS
 
       @id_index.each do |id, element|
         value_list.each do |value|
-          if element.respond_to? property and value == element.send(property)
+          if element[property] and value == element[property]
             filtered_id_index[id] = element
             filtered_state_index[element.state_hash] = element
           end
         end
       end
 
-      return self.get_new_instance(filtered_id_index, filtered_state_index)
+      return self.class.new(filtered_id_index, filtered_state_index)
     end
 
     def filter_by_regex(property, regex_list)
@@ -50,23 +58,39 @@ module ProcFS
 
       @id_index.each do |id, element|
         regex_list.each do |rx|
-          if element.respond_to? property and rx =~ element.send(property)
+          element[property]
+          if element[property] and rx =~ element[property]
             filtered_id_index[id] = element
             filtered_state_index[element.state_hash] = element
           end
         end
       end
 
-      return self.get_new_instance(filtered_id_index, filtered_state_index)
+      return self.class.new(filtered_id_index, filtered_state_index)
     end
 
-    ## TODO: Function diffs state across two lists sharing the same ids
-    def diff_states_by_id(rhs_list)
+    ## Function diffs state across two lists sharing the same ids
+    ## All list elements must implement a `-` operator that returns nil
+    ## of their values are the same, otherwise, it should only return
+    ## the diffs
+    def -(rhs_list)
+      delta_id_index = {}
+      delta_state_index = {}
 
-      @id_index.each do |id, element|
-
+      rhs_list.each do |id, element|
+        begin
+          delta = @id_index[id] - element
+        rescue
+          puts "*** Attempted to subtract #{element.id} from nil"
+          delta = nil
+        end
+        unless delta.nil?
+          delta_id_index[id] = delta
+          delta_state_index[delta.state_hash] = delta
+        end
       end
 
+      return self.class.new(delta_id_index, delta_state_index)
     end
 
     def diff_ids(rhs_list)
@@ -84,7 +108,7 @@ module ProcFS
         delta_state_index[list_element.state_hash] = list_element
       end
 
-      return self.get_new_instance(delta_id_index, delta_state_index)
+      return self.class.new(delta_id_index, delta_state_index)
     end
 
     def diff_states(rhs_list)
@@ -102,7 +126,7 @@ module ProcFS
         delta_state_index[hash] = list_element
       end
 
-      return self.get_new_instance(delta_id_index, delta_state_index)
+      return self.class.new(delta_id_index, delta_state_index)
     end
 
     def empty?
@@ -122,9 +146,9 @@ module ProcFS
     end
 
     def to_s
-      process_strings = []
-      @id_index.each { |id, list_element| process_strings << list_element.to_s }
-      process_strings.join("\n")
+      strings = []
+      @id_index.each { |id, list_element| strings << list_element.to_s }
+      strings.join(@separator)
     end
 
     def has_same_items(rhs_list)
@@ -133,10 +157,6 @@ module ProcFS
 
     def ==(rhs_list)
       @state_hash == rhs_list.state_hash
-    end
-
-    def get_new_instance(passthrough_id_index = {}, passthrough_state_index = {})
-      IdStateList.new(passthrough_id_index, passthrough_state_index)
     end
 
   end

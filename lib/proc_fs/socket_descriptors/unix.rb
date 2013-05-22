@@ -4,37 +4,41 @@ module ProcFS
 
     class Unix < ::ProcFS::IdStateListItem
 
-      attr_accessor :inode, :state, :reference_count, :type, :path
+      attr_accessor :type
 
-      def initialize(socket_line = nil)
-        parse_socket(socket_line) unless socket_line.nil?
-        super
-      end
-
-      def parse_socket(socket_line)
+      def self.parse_socket(socket_line)
         # Format of /proc/net entries
         # # cat /proc/net/unix
         # Num       RefCount Protocol Flags    Type St Inode Path
         # ee9c5e00: 0000000A 00000000 00000000 0002 01  3352 /dev/log
 
-        socket_decriptor  = socket_line.split
+        socket_descriptor = socket_line.split
 
-        @id               = socket_decriptor[6]
-        # Common socket properties
-        @inode            = socket_decriptor[6]
-        @state            = ::ProcFS::NET_STATES[socket_decriptor[5]]
-        @reference_count  = socket_decriptor[1]
+        properties = {
+          :id               => socket_descriptor[6],
 
-        # Unix socket specific properties
-        @path             = socket_decriptor[7]
+          # Common socket properties
+          :inode            => socket_descriptor[6],
+          :state            => ::ProcFS::NET_STATES[socket_descriptor[5]],
+          :reference_count  => socket_descriptor[1],
+
+          # Unix socket specific properties
+          :path             => socket_descriptor[7]
+        }
+
+        return ::ProcFS::SocketDescriptor::Unix.new(properties)
       end
 
-      def get_state_for_hash
-        [ @type, @state, @reference_count ].join
+      def -(rhs)
+        list_item_delta = super(rhs)
+        unless list_item_delta.nil?
+          list_item_delta = merge list_item_delta
+        end
+        list_item_delta
       end
 
       def to_s
-        "#{type} #{inode} #{state} #{reference_count} #{path} "
+        "#{type} #{inode} #{state} #{reference_count} #{path}"
       end
 
     end

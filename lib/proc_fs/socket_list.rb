@@ -28,9 +28,9 @@ module ProcFS
         File.readlines("/proc/net/#{type}")[1..-1].each do |line|
           case type
             when "unix"
-              socket_descriptor = ::ProcFS::SocketDescriptor::Unix.new(line)
+              socket_descriptor = ::ProcFS::SocketDescriptor::Unix.parse_socket(line)
             else
-              socket_descriptor = ::ProcFS::SocketDescriptor::Net.new(line)
+              socket_descriptor = ::ProcFS::SocketDescriptor::Net.parse_socket(line)
           end
           socket_descriptor.type = type
 
@@ -39,21 +39,7 @@ module ProcFS
         end
       end
 
-      return SocketList.new(scan_id_index, scan_state_index)
-    end
-
-    def initialize(passthrough_id_index = {}, passthrough_state_index = {})
-      super
-    end
-
-    def to_s
-      socket_strings = []
-      @id_index.each { |id, s| socket_strings << s.to_s }
-      socket_strings.join("\n")
-    end
-
-    def get_new_instance(passthrough_id_index = {}, passthrough_state_index = {})
-      SocketList.new(passthrough_id_index, passthrough_state_index)
+      return ::ProcFS::SocketList.new(scan_id_index, scan_state_index)
     end
 
   end

@@ -1,5 +1,4 @@
 require ::File.expand_path("./proc_fs/index", File.dirname(__FILE__))
-require 'json'
 
 module ProfileProbe
 

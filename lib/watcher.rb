@@ -10,7 +10,6 @@ module ProfileProbe
 
       # Empty process list
       @known_process_list = ::ProcFS::ProcessList.new
-      @known_socket_list = ::ProcFS::SocketList.new
     end
 
     def probe
@@ -21,7 +20,12 @@ module ProfileProbe
       process_list  = process_list.filter_by_regex(:cmdline, @process_regex_list) unless @process_regex_list.empty?
 
       unless @known_process_list == process_list
-        puts "\n\n#{Time.now.utc.to_s}"
+
+        delta_struct = {
+          :timestamp => Time.now.utc,
+          :new_state => process_list.state_hash,
+          :old_state => @known_process_list.state_hash
+        }
 
         new_process_list = process_list.diff_ids(@known_process_list)
         old_process_list = @known_process_list.diff_ids(process_list)
@@ -31,9 +35,16 @@ module ProfileProbe
         stale_process_list = stale_process_list_raw.diff_ids(old_process_list)
         delta_process_list = fresh_process_list - stale_process_list
 
-        puts "SPAWNED\n#{new_process_list}" unless new_process_list.empty?
-        puts "KILLED\n#{old_process_list}" unless old_process_list.empty?
-        puts "DELTA\n#{delta_process_list}" unless delta_process_list.empty?
+        delta_struct[:spawned] = new_process_list unless new_process_list.empty?
+        delta_struct[:killed] = old_process_list unless old_process_list.empty?
+        delta_struct[:delta] = delta_process_list unless delta_process_list.empty?
+
+        deltas = ::ProcFS::PropertyBag.new(delta_struct)
+        deltas.separator ="\n\n"
+
+        puts deltas
+        puts
+        puts
       end
 
       @known_process_list = process_list

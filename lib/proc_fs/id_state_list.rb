@@ -2,10 +2,11 @@ module ProcFS
 
   class IdStateList
 
-    include ::ProcFS::HasIdAndStateHashes
     include Enumerable
+    include ::ProcFS::HasPrintableHash
+    include ::ProcFS::HasIdAndStateHashes
 
-    attr_accessor :id_index, :state_index, :id_hash, :state_hash
+    attr_accessor :id_index, :state_index
 
     def initialize(passthrough_id_index = {}, passthrough_state_index = {})
       @separator = "\n"
@@ -19,6 +20,24 @@ module ProcFS
       @id_index.each do |id, element|
         yield id, element
       end
+    end
+
+    def each_by_id
+      @id_index.each do |id, list_element|
+        yield id, list_element
+      end
+    end
+
+    def each_by_state
+      @state_index.each do |hash, list_element|
+        yield hash, list_element
+      end
+    end
+
+    def to_hash
+      hash_copy = Hash[@id_index]
+      hash_copy[:id_hash] = @id_hash
+      hash_copy[:state_hash] = @state_hash
     end
 
     def filter_by_id(id_list)
@@ -131,24 +150,6 @@ module ProcFS
 
     def empty?
       @id_index.empty?
-    end
-
-    def each_by_id
-      @id_index.each do |id, list_element|
-        yield id, list_element
-      end
-    end
-
-    def each_by_state
-      @state_index.each do |hash, list_element|
-        yield hash, list_element
-      end
-    end
-
-    def to_s
-      strings = []
-      @id_index.each { |id, list_element| strings << list_element.to_s }
-      strings.join(@separator)
     end
 
     def has_same_items(rhs_list)

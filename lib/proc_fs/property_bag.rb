@@ -2,6 +2,8 @@ module ProcFS
 
   class PropertyBag < Hash
 
+    include ::ProcFS::HasPrintableHash
+
     def initialize(property_hash = {})
       super(nil)
       property_hash.each do |name, value|
@@ -31,20 +33,6 @@ module ProcFS
 
       return property_bag_delta if delta
       return nil
-    end
-
-    def to_s
-      ret_vals = []
-      each do |name, value|
-        ancestry = self.class.ancestors
-        if (ancestry.include? ::ProcFS::PropertyBag or ancestry.include? ::ProcFS::IdStateList)
-          value_string = value.to_s.gsub("\n", "\n  ").prepend("\n  ")
-        else
-          value_string = value.to_s
-        end
-        ret_vals << "#{name}: #{value_string}" unless value.nil?
-      end
-      ret_vals.join("\n")
     end
 
   end

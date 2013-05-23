@@ -9,7 +9,6 @@ module ProcFS
     attr_accessor :id_index, :state_index
 
     def initialize(passthrough_id_index = {}, passthrough_state_index = {})
-      @separator = "\n"
       @id_index = passthrough_id_index
       @state_index = passthrough_state_index
       @id_hash = generate_id_hash(@id_index.keys.join)
@@ -32,6 +31,14 @@ module ProcFS
       @state_index.each do |hash, list_element|
         yield hash, list_element
       end
+    end
+
+    def fetch(id)
+      @id_index[id]
+    end
+
+    def [](id)
+      @id_index[id]
     end
 
     def to_hash
@@ -88,28 +95,47 @@ module ProcFS
       return self.class.new(filtered_id_index, filtered_state_index)
     end
 
-    ## Function diffs state across two lists sharing the same ids
     ## All list elements must implement a `-` operator that returns nil
     ## of their values are the same, otherwise, it should only return
     ## the diffs
     def -(rhs_list)
-      delta_id_index = {}
-      delta_state_index = {}
+        lhs_list = self
+        diff = nil
 
-      rhs_list.each do |id, element|
-        begin
-          delta = @id_index[id] - element
-        rescue
-          puts "*** Attempted to subtract #{element.id} from nil"
-          delta = nil
-        end
-        unless delta.nil?
-          delta_id_index[id] = delta
-          delta_state_index[delta.state_hash] = delta
-        end
-      end
+        unless lhs_list == rhs_list
+          delta_struct = {
+            :lhs_state  => lhs_list.state_hash,
+            :rhs_state  => rhs_list.state_hash
+          }
 
-      return self.class.new(delta_id_index, delta_state_index)
+          lhs_only_id_list = lhs_list.diff_ids rhs_list
+          rhs_only_id_list = rhs_list.diff_ids lhs_list
+          lhs_only_states_raw = lhs_list.diff_states rhs_list
+          rhs_only_states_raw = rhs_list.diff_states lhs_list
+          lhs_only_states = lhs_only_states_raw.diff_ids lhs_only_id_list
+          rhs_only_states = rhs_only_states_raw.diff_ids rhs_only_id_list
+
+          delta_id_index = {}
+          delta_state_index = {}
+
+          lhs_only_states.each do |id, lhs|
+            delta = lhs - rhs_only_states[id]
+            unless delta.nil?
+              delta_id_index[id] = delta
+              delta_state_index[delta.state_hash] = delta
+            end
+          end
+
+          deltas = self.class.new(delta_id_index, delta_state_index)
+
+          delta_struct[:lhs_only] = lhs_only_id_list unless lhs_only_id_list.empty?
+          delta_struct[:rhs_only] = rhs_only_id_list unless rhs_only_id_list.empty?
+          delta_struct[:deltas] = deltas unless deltas.empty?
+
+          diff = ::ProcFS::PropertyBag.new(delta_struct)
+        end
+
+        return diff
     end
 
     def diff_ids(rhs_list)
@@ -159,6 +185,20 @@ module ProcFS
     def ==(rhs_list)
       @state_hash == rhs_list.state_hash
     end
+
+    def to_hash
+      my_hash = {}
+      @id_index.each do |name, value|
+        ancestry = value.class.ancestors
+        if (ancestry.include? ::ProcFS::PropertyBag or ancestry.include? ::ProcFS::IdStateList)
+          my_hash[name] = value.to_hash
+        else
+          my_hash[name] = value
+        end
+      end
+      return my_hash
+    end
+
 
   end
 

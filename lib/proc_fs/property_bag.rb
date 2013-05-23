@@ -35,6 +35,19 @@ module ProcFS
       return nil
     end
 
+    def to_hash
+      my_hash = {}
+      each do |name, value|
+        ancestry = value.class.ancestors
+        if (ancestry.include? ::ProcFS::PropertyBag or ancestry.include? ::ProcFS::IdStateList)
+          my_hash[name] = value.to_hash
+        else
+          my_hash[name] = value
+        end
+      end
+      return my_hash
+    end
+
   end
 
 end

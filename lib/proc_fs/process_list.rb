@@ -23,7 +23,6 @@ module ProcFS
 
     def initialize(*args)
       super(*args)
-      @separator = "\n\n"
     end
 
   end

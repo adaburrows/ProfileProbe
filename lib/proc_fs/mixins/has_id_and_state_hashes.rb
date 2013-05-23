@@ -17,6 +17,16 @@ module ProcFS
       @state_hash = generate_state_hash(get_state_for_hash)
     end
 
+
+    def to_hash
+      my_hash = {
+        :id_hash    => @id_hash,
+        :state_hash => @state_hash
+      }
+      return my_hash.merge(super)
+    end
+
+
   end
 
 end

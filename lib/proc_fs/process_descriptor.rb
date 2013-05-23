@@ -115,39 +115,6 @@ module ProcFS
       IO.read("#{path}/oom_score").chomp
     end
 
-    def -(rhs)
-      list_item_delta = super(rhs)
-      unless list_item_delta.nil?
-        list_item_delta[:pid] = pid
-        list_item_delta[:cmdline] = cmdline
-
-        lhs_sockets = self[:sockets]
-        rhs_sockets = rhs[:sockets]
-
-        unless lhs_sockets == rhs_sockets
-          lhs_socket_list = lhs_sockets.diff_ids rhs_sockets
-          rhs_socket_list = rhs_sockets.diff_ids lhs_sockets
-          lhs_only_socket_states_raw = lhs_sockets.diff_states rhs_sockets
-          rhs_only_socket_states_raw = rhs_sockets.diff_states lhs_sockets
-          lhs_only_socket_states = lhs_only_socket_states_raw.diff_ids lhs_socket_list
-          rhs_only_socket_states = rhs_only_socket_states_raw.diff_ids rhs_socket_list
-          delta =  lhs_only_socket_states - rhs_only_socket_states
-          socket_struct = {
-            :lhs_state  => lhs_sockets.state_hash,
-            :rhs_state  => rhs_sockets.state_hash
-          }
-
-          socket_struct[:lhs_only] = lhs_socket_list unless lhs_socket_list.empty?
-          socket_struct[:rhs_only] = rhs_socket_list unless rhs_socket_list.empty?
-          socket_struct[:delta] = delta unless delta.empty?
-
-          list_item_delta[:sockets] = ::ProcFS::PropertyBag.new(socket_struct)
-        end
-
-      end
-      list_item_delta
-    end
-
     def get_state_for_hash
       state_data = ""
       state_data += statm.values.join unless statm.nil?

@@ -16,7 +16,6 @@ module ProfileProbe
     end
 
     def stop_it
-      puts "Terminating..."
       @running = false
     end
 
@@ -26,7 +25,8 @@ module ProfileProbe
       loop do
         break if !@running
 
-        @watcher.probe
+        results = @watcher.probe
+        puts JSON.pretty_generate(results.to_hash) + "\r\n\r\n" unless results.nil?
 
         sleep 0.005
       end

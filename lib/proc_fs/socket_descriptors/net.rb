@@ -59,14 +59,6 @@ module ProcFS
         return ::ProcFS::SocketDescriptor::Net.new(properties)
       end
 
-      def -(rhs)
-        list_item_delta = super(rhs)
-        unless list_item_delta.nil?
-          list_item_delta = merge list_item_delta
-        end
-        list_item_delta
-      end
-
       def to_s
         "#{type} #{inode} #{state} #{reference_count} #{local_address_quad}:#{local_port} ---> #{remote_address_quad}:#{remote_port}"
       end

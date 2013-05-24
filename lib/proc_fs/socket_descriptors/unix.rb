@@ -29,14 +29,6 @@ module ProcFS
         return ::ProcFS::SocketDescriptor::Unix.new(properties)
       end
 
-      def -(rhs)
-        list_item_delta = super(rhs)
-        unless list_item_delta.nil?
-          list_item_delta = merge list_item_delta
-        end
-        list_item_delta
-      end
-
       def to_s
         "#{type} #{inode} #{state} #{reference_count} #{path}"
       end
